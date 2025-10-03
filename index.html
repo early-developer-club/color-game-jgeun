@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>절대색감 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .timer {
+            color: #e74c3c;
+        }
+
+        .level {
+            color: #27ae60;
+        }
+
+        .score {
+            color: #667eea;
+        }
+
+        .game-board {
+            display: grid;
+            gap: 10px;
+            margin: 30px auto;
+            max-width: 600px;
+            aspect-ratio: 1;
+        }
+
+        .color-box {
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.1s;
+            border: 3px solid transparent;
+        }
+
+        .color-box:hover {
+            transform: scale(0.95);
+            border-color: rgba(0,0,0,0.2);
+        }
+
+        .start-screen, .result-screen {
+            text-align: center;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 20px 10px;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .ranking {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .ranking h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .ranking-list {
+            list-style: none;
+        }
+
+        .ranking-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .rank-number {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 30px;
+        }
+
+        .rank-level {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .instructions {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+
+        .result-screen h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .final-level {
+            font-size: 3em;
+            color: #27ae60;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 절대색감 게임</h1>
+        
+        <div id="startScreen" class="start-screen">
+            <div class="instructions">
+                <h3>게임 방법</h3>
+                <p>✨ 60초 동안 다른 색상의 사각형을 찾으세요!</p>
+                <p>📈 레벨이 올라갈수록 사각형이 많아지고 색상이 비슷해집니다.</p>
+                <p>🏆 최고 레벨에 도전하고 랭킹에 등록하세요!</p>
+            </div>
+            <button class="btn" onclick="startGame()">게임 시작</button>
+            <div class="ranking">
+                <h3>🏆 Top 10 랭킹</h3>
+                <ul id="rankingList" class="ranking-list"></ul>
+            </div>
+        </div>
+
+        <div id="gameScreen" class="hidden">
+            <div class="game-info">
+                <div class="timer">⏱️ <span id="timer">60</span>초</div>
+                <div class="level">📊 Level <span id="level">1</span></div>
+                <div class="score">⭐ Score: <span id="score">0</span></div>
+            </div>
+            <div id="gameBoard" class="game-board"></div>
+        </div>
+
+        <div id="resultScreen" class="result-screen hidden">
+            <h2>🎉 게임 종료!</h2>
+            <p>최종 레벨</p>
+            <div class="final-level" id="finalLevel">0</div>
+            <p>최종 점수: <span id="finalScore" style="font-size: 1.5em; color: #667eea; font-weight: bold;">0</span></p>
+            <button class="btn" onclick="restartGame()">다시 하기</button>
+            <div class="ranking">
+                <h3>🏆 Top 10 랭킹</h3>
+                <ul id="resultRankingList" class="ranking-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let level = 1;
+        let score = 0;
+        let timeLeft = 60;
+        let timer;
+        let currentDifferentIndex;
+        let gameActive = false;
+
+        // localStorage를 사용한 저장 방식으로 변경
+        function getStorageItem(key) {
+            try {
+                const value = localStorage.getItem(key);
+                console.log(`localStorage 읽기 [${key}]:`, value);
+                return value;
+            } catch (e) {
+                console.error('localStorage 읽기 오류:', e);
+                return null;
+            }
+        }
+
+        function setStorageItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                console.log(`localStorage 저장 [${key}]:`, value);
+                
+                // 저장 확인
+                const saved = localStorage.getItem(key);
+                console.log('저장 확인:', saved === value ? '성공' : '실패');
+                return saved === value;
+            } catch (e) {
+                console.error('localStorage 저장 오류:', e);
+                return false;
+            }
+        }
+
+        function getRankings() {
+            console.log('=== 랭킹 불러오기 시작 ===');
+            const data = getStorageItem('colorGameRankings');
+            
+            if (!data) {
+                console.log('저장된 랭킹 데이터 없음');
+                console.log('=== 랭킹 불러오기 완료 (빈 배열) ===');
+                return [];
+            }
+            
+            try {
+                const rankings = JSON.parse(data);
+                console.log('파싱된 랭킹:', rankings);
+                console.log('=== 랭킹 불러오기 완료 ===');
+                return rankings;
+            } catch (e) {
+                console.error('랭킹 데이터 파싱 오류:', e);
+                console.error('파싱 실패한 데이터:', data);
+                console.log('=== 랭킹 불러오기 완료 (오류로 인한 빈 배열) ===');
+                return [];
+            }
+        }
+
+        function saveRanking(level, score) {
+            console.log('=== 랭킹 저장 시작 ===');
+            console.log('저장할 레벨:', level, '점수:', score);
+            
+            let rankings = getRankings();
+            console.log('현재 랭킹:', JSON.stringify(rankings));
+            
+            // 매번 새로운 기록으로 저장 (고유 ID 제거)
+            const newEntry = {
+                id: Date.now() + '_' + Math.random().toString(36).substr(2, 9), // 고유 식별자
+                level: level,
+                score: score,
+                date: new Date().toISOString()
+            };
+            console.log('새 기록:', JSON.stringify(newEntry));
+
+            // 항상 새 기록 추가
+            rankings.push(newEntry);
+            console.log('새 기록 추가됨');
+
+            // 정렬
+            rankings.sort((a, b) => {
+                if (b.level !== a.level) return b.level - a.level;
+                return b.score - a.score;
+            });
+
+            // Top 10만 유지
+            rankings = rankings.slice(0, 10);
+            
+            const rankingsJson = JSON.stringify(rankings);
+            console.log('JSON 문자열 길이:', rankingsJson.length);
+            
+            const saveSuccess = setStorageItem('colorGameRankings', rankingsJson);
+            
+            if (saveSuccess) {
+                console.log('최종 저장된 랭킹:', JSON.stringify(rankings));
+                console.log('=== 랭킹 저장 완료 ===');
+            } else {
+                console.error('=== 랭킹 저장 실패 ===');
+            }
+            
+            return rankings;
+        }
+
+        function generateUserId() {
+            return 'user_' + Math.random().toString(36).substr(2, 9) + Date.now();
+        }
+
+        function formatDateTime(isoString) {
+            const date = new Date(isoString);
+            const year = date.getFullYear().toString().slice(2); // 25
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            
+            return `${year}.${month}.${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        function displayRankings(elementId) {
+            console.log('=== 랭킹 표시 시작 ===');
+            console.log('표시할 요소 ID:', elementId);
+            
+            const rankings = getRankings();
+            console.log('불러온 랭킹 데이터:', JSON.stringify(rankings));
+            console.log('랭킹 개수:', rankings.length);
+            
+            const listElement = document.getElementById(elementId);
+            console.log('리스트 요소 존재:', !!listElement);
+            
+            if (!listElement) {
+                console.error('랭킹 리스트 요소를 찾을 수 없습니다:', elementId);
+                return;
+            }
+            
+            if (rankings.length === 0) {
+                listElement.innerHTML = '<li class="ranking-item">아직 랭킹 기록이 없습니다.</li>';
+                console.log('랭킹 기록 없음 - 기본 메시지 표시');
+                return;
+            }
+
+            const html = rankings.map((entry, index) => {
+                const formattedDate = formatDateTime(entry.date);
+                console.log(`${index + 1}위:`, JSON.stringify(entry));
+                return `
+                    <li class="ranking-item">
+                        <span class="rank-number">${index + 1}위</span>
+                        <span class="rank-level">Level ${entry.level}</span>
+                        <span>${entry.score}점</span>
+                        <span style="font-size: 0.9em; color: #666;">${formattedDate}</span>
+                    </li>
+                `;
+            }).join('');
+            
+            listElement.innerHTML = html;
+            console.log('랭킹 HTML 업데이트 완료');
+            console.log('=== 랭킹 표시 완료 ===');
+        }
+
+        function startGame() {
+            level = 1;
+            score = 0;
+            timeLeft = 60;
+            gameActive = true;
+            
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            document.getElementById('resultScreen').classList.add('hidden');
+            
+            updateDisplay();
+            createBoard();
+            startTimer();
+        }
+
+        function startTimer() {
+            timer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function updateDisplay() {
+            document.getElementById('level').textContent = level;
+            document.getElementById('score').textContent = score;
+        }
+
+        function createBoard() {
+            const board = document.getElementById('gameBoard');
+            const gridSize = Math.min(2 + Math.floor(level / 2), 8);
+            const totalBoxes = gridSize * gridSize;
+            
+            board.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+            board.innerHTML = '';
+
+            const baseColor = getRandomColor();
+            const difference = Math.max(10, 50 - level * 2);
+            const differentColor = getSlightlyDifferentColor(baseColor, difference);
+            
+            currentDifferentIndex = Math.floor(Math.random() * totalBoxes);
+
+            for (let i = 0; i < totalBoxes; i++) {
+                const box = document.createElement('div');
+                box.className = 'color-box';
+                box.style.backgroundColor = i === currentDifferentIndex ? differentColor : baseColor;
+                box.onclick = () => checkAnswer(i);
+                board.appendChild(box);
+            }
+        }
+
+        function getRandomColor() {
+            const r = Math.floor(Math.random() * 256);
+            const g = Math.floor(Math.random() * 256);
+            const b = Math.floor(Math.random() * 256);
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function getSlightlyDifferentColor(color, diff) {
+            const rgb = color.match(/\d+/g).map(Number);
+            const channel = Math.floor(Math.random() * 3);
+            rgb[channel] = Math.max(0, Math.min(255, rgb[channel] + (Math.random() > 0.5 ? diff : -diff)));
+            return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        }
+
+        function checkAnswer(index) {
+            if (!gameActive) return;
+
+            if (index === currentDifferentIndex) {
+                score += level * 10;
+                level++;
+                updateDisplay();
+                createBoard();
+            } else {
+                // 오답 시 현재 레벨까지만 인정 (다음 레벨은 실패했으므로)
+                endGame(level);
+            }
+        }
+
+        function endGame(finalLevel = null) {
+            gameActive = false;
+            clearInterval(timer);
+            
+            // finalLevel이 전달되지 않으면 현재 레벨 (시간 초과의 경우)
+            const achievedLevel = finalLevel !== null ? finalLevel : level;
+            
+            console.log('게임 종료 - 최종 레벨:', achievedLevel, '점수:', score);
+            
+            // 랭킹 저장 후 바로 갱신된 랭킹 표시
+            saveRanking(achievedLevel, score);
+            
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.remove('hidden');
+            document.getElementById('finalLevel').textContent = achievedLevel;
+            document.getElementById('finalScore').textContent = score;
+            
+            // 랭킹 표시 (즉시 갱신)
+            setTimeout(() => {
+                displayRankings('resultRankingList');
+            }, 100);
+        }
+
+        function restartGame() {
+            startGame();
+        }
+
+        // 초기 랭킹 표시
+        displayRankings('rankingList');
+    </script>
+</body>
+</html>
